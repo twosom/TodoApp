@@ -7,10 +7,20 @@
 //
 
 import UIKit
+import CoreData
 
 
 class ViewController: UIViewController {
 
+    private let appDelegate: AppDelegate = UIApplication.shared.delegate as! AppDelegate
+
+    var todoList = [TodoEntity?]()
+
+    var dateFormatter: DateFormatter = DateFormatter() {
+        didSet {
+            dateFormatter.dateFormat = "yyyy년 MM월 dd알"
+        }
+    }
 
     @IBOutlet
     var todoTableView: UITableView!
@@ -25,6 +35,19 @@ class ViewController: UIViewController {
 
         todoTableView.delegate = self
         todoTableView.dataSource = self
+        fetchData()
+        //TODO MAIN-ASYNC?
+        todoTableView.reloadData()
+    }
+
+    func fetchData() {
+        let fetchRequest: NSFetchRequest<TodoEntity> = TodoEntity.fetchRequest()
+        let context: NSManagedObjectContext = appDelegate.persistentContainer.viewContext
+        do {
+            todoList = try context.fetch(fetchRequest)
+        } catch {
+            print(error)
+        }
     }
 
     func makeNavigationBar() {
@@ -59,12 +82,24 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView,
                    numberOfRowsInSection section: Int) -> Int {
-        0
+        todoList.count
     }
 
     func tableView(_ tableView: UITableView,
                    cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        tableView.dequeueReusableCell(withIdentifier: "TodoCell", for: indexPath)
+        guard let todoCell = tableView.dequeueReusableCell(withIdentifier: "TodoCell", for: indexPath) as? TodoCell else { return TodoCell() }
+
+        if let todoEntity = todoList[indexPath.row] {
+            todoCell.topTitleLabel.text = todoEntity.title
+            //## IF EXISTS DATE
+            if let hasDate = todoEntity.date {
+                todoCell.dateLabel.text = dateFormatter.string(from: hasDate)
+            } else {
+                todoCell.dateLabel.text = ""
+            }
+
+        }
+        return todoCell
     }
 
 
