@@ -9,6 +9,24 @@
 import UIKit
 import CoreData
 
+enum PriorityLevel: Int16 {
+    case LOW
+    case NORMAL
+    case HIGH
+}
+
+extension PriorityLevel {
+    var color: UIColor {
+        switch self {
+        case .LOW:
+            return .green
+        case .NORMAL:
+            return .orange
+        case .HIGH:
+            return .red
+        }
+    }
+}
 
 class ViewController: UIViewController {
 
@@ -16,11 +34,7 @@ class ViewController: UIViewController {
 
     var todoList = [TodoEntity?]()
 
-    var dateFormatter: DateFormatter = DateFormatter() {
-        didSet {
-            dateFormatter.dateFormat = "yyyy년 MM월 dd알"
-        }
-    }
+    var dateFormatter: DateFormatter = DateFormatter()
 
     @IBOutlet
     var todoTableView: UITableView!
@@ -29,6 +43,7 @@ class ViewController: UIViewController {
     override
     func viewDidLoad() {
         super.viewDidLoad()
+        dateFormatter.dateFormat = "yyyy년 MM월 dd일"
 
         title = "TODO App"
         makeNavigationBar()
@@ -51,10 +66,12 @@ class ViewController: UIViewController {
     }
 
     func makeNavigationBar() {
-        guard let navigationBar = navigationController?.navigationBar else { return }
+        guard let navigationBar = navigationController?.navigationBar else {
+            return
+        }
         navigationBar.prefersLargeTitles = true
 
-        let item = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addTodo))
+        let item = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addNewTodo))
         item.tintColor = .black.withAlphaComponent(0.7)
         navigationItem.rightBarButtonItem = item
 
@@ -70,8 +87,10 @@ class ViewController: UIViewController {
 
 
     @objc
-    func addTodo() {
-
+    func addNewTodo() {
+        let detailVC = TodoDetailViewController(nibName: "TodoDetailViewController", bundle: nil)
+        detailVC.delegate = self
+        present(detailVC, animated: true)
     }
 
 }
@@ -87,7 +106,9 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView,
                    cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let todoCell = tableView.dequeueReusableCell(withIdentifier: "TodoCell", for: indexPath) as? TodoCell else { return TodoCell() }
+        guard let todoCell = tableView.dequeueReusableCell(withIdentifier: "TodoCell", for: indexPath) as? TodoCell else {
+            return TodoCell()
+        }
 
         if let todoEntity = todoList[indexPath.row] {
             todoCell.topTitleLabel.text = todoEntity.title
@@ -98,8 +119,19 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
                 todoCell.dateLabel.text = ""
             }
 
+            let priorityColor = PriorityLevel(rawValue: todoEntity.priorityLevel)?.color
+            todoCell.priorityView.backgroundColor = priorityColor
+
         }
         return todoCell
+    }
+}
+
+
+extension ViewController: TodoDetailViewControllerDelegate {
+    func didFinishSaveData() {
+        fetchData()
+        todoTableView.reloadData()
     }
 
 

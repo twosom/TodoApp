@@ -10,8 +10,11 @@ class TodoCell: UITableViewCell {
     var topTitleLabel: UILabel!
 
     @IBOutlet
-    var priorityView: UIView!
-
+    var priorityView: UIView! {
+        didSet {
+            priorityView.layer.cornerRadius = priorityView.bounds.height / 2
+        }
+    }
 
     @IBOutlet
     var dateLabel: UILabel!
