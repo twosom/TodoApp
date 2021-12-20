@@ -104,6 +104,16 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
         todoList.count
     }
 
+    public func tableView(_ tableView: UITableView,
+                          didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        guard let todoEntity: TodoEntity = todoList[indexPath.row] else { return }
+        let detailVC = TodoDetailViewController(nibName: "TodoDetailViewController", bundle: nil)
+        detailVC.delegate = self
+        detailVC.selectedTodoEntity = todoEntity
+        present(detailVC,animated: true)
+    }
+
     func tableView(_ tableView: UITableView,
                    cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let todoCell = tableView.dequeueReusableCell(withIdentifier: "TodoCell", for: indexPath) as? TodoCell else {

@@ -20,7 +20,9 @@ class TodoDetailViewController: UIViewController {
 
     private let appDelegate: AppDelegate = UIApplication.shared.delegate as! AppDelegate
 
-    var priority: PriorityLevel?
+    private var priority: PriorityLevel?
+
+    var selectedTodoEntity: TodoEntity?
 
     @IBOutlet
     var titleTextField: UITextField!
@@ -34,26 +36,41 @@ class TodoDetailViewController: UIViewController {
     @IBOutlet
     var highButton: UIButton!
 
+    @IBOutlet
+    var deleteButton: UIButton!
+
+    @IBOutlet
+    var saveButton: UIButton!
+    
     override
     func viewDidLoad() {
         super.viewDidLoad()
     }
 
-    override func viewDidLayoutSubviews() {
+    override
+    func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        guard let selectedTodoEntity: TodoEntity = selectedTodoEntity else {
+            deleteButton.isHidden = true
+            return
+        }
+        titleTextField.text = selectedTodoEntity.title
+        priority = PriorityLevel(rawValue: selectedTodoEntity.priorityLevel)
+        deleteButton.isHidden = false
+        saveButton.setTitle("Update", for: .normal)
+        makePriorityButtonDesign()
+    }
+
+    override
+    func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         [lowButton, normalButton, highButton].forEach { button in
-            button.layer.cornerRadius = button.frame.height / 2
+            button.layer.cornerRadius = button.bounds.height / 2
         }
     }
 
     @IBAction
     func setPriority(_ sender: UIButton) {
-
-        lowButton.backgroundColor = .clear
-        normalButton.backgroundColor = .clear
-        highButton.backgroundColor = .clear
-
-
         switch sender.tag {
         case 1:
             priority = .LOW
@@ -64,23 +81,105 @@ class TodoDetailViewController: UIViewController {
         default:
             break
         }
-        sender.backgroundColor = priority?.color
+        makePriorityButtonDesign()
+    }
+
+    func makePriorityButtonDesign() {
+        [lowButton, normalButton, highButton].forEach { button in
+            button.backgroundColor = .clear
+        }
+        guard let priority = priority else {
+            return
+        }
+
+
+        switch priority {
+        case .LOW:
+            lowButton.backgroundColor = priority.color
+        case .NORMAL:
+            normalButton.backgroundColor = priority.color
+        case .HIGH:
+            highButton.backgroundColor = priority.color
+        }
     }
 
     @IBAction
     func saveTodo(_ sender: UIButton) {
+        if selectedTodoEntity != nil {
+            updateTodo()
+        } else {
+            saveTodo()
+        }
+        appDelegate.saveContext()
+        delegate?.didFinishSaveData()
+        dismiss(animated: true)
+    }
+
+    func saveTodo() {
         let context: NSManagedObjectContext = appDelegate.persistentContainer.viewContext
-        guard let entityDescription = NSEntityDescription.entity(forEntityName: "TodoEntity", in: context) else { return }
-        guard let todoEntity: TodoEntity = NSManagedObject(entity: entityDescription, insertInto: context) as? TodoEntity else { return }
+        guard let entityDescription = NSEntityDescription.entity(forEntityName: "TodoEntity", in: context) else {
+            return
+        }
+        guard let todoEntity: TodoEntity = NSManagedObject(entity: entityDescription, insertInto: context) as? TodoEntity else {
+            return
+        }
         todoEntity.title = titleTextField.text
         todoEntity.date = Date.now
         todoEntity.uuid = UUID()
         todoEntity.priorityLevel = priority?.rawValue ?? PriorityLevel.LOW.rawValue
+    }
 
-        appDelegate.saveContext()
+
+    func updateTodo() {
+        let fetchRequest: NSFetchRequest<TodoEntity> = TodoEntity.fetchRequest()
+        guard let uuid = getSelectedTodoUUID() else {
+            return
+        }
+        fetchRequest.predicate = NSPredicate(format: "uuid = %@", uuid as CVarArg)
+
+        let context: NSManagedObjectContext = appDelegate.persistentContainer.viewContext
+        do {
+            let loadedData: [TodoEntity] = try context.fetch(fetchRequest)
+            guard let findTodoEntity = loadedData.first else {
+                return
+            }
+            findTodoEntity.title = titleTextField.text
+            findTodoEntity.date = Date.now
+            findTodoEntity.priorityLevel = priority?.rawValue ?? PriorityLevel.LOW.rawValue
+        } catch {
+            print(error)
+        }
+    }
+
+    @IBAction
+    func deleteTodo(_ sender: UIButton) {
+        let context = appDelegate.persistentContainer.viewContext
+        let fetchRequest: NSFetchRequest<TodoEntity> = TodoEntity.fetchRequest()
+        guard let uuid = getSelectedTodoUUID() else {
+            return
+        }
+        fetchRequest.predicate = NSPredicate(format: "uuid = %@", uuid as CVarArg)
+        do {
+            let loadedData: [TodoEntity] = try context.fetch(fetchRequest)
+            if let findTodoEntity = loadedData.first {
+                context.delete(findTodoEntity)
+                appDelegate.saveContext()
+            }
+        } catch {
+            print(error)
+        }
+
         delegate?.didFinishSaveData()
         dismiss(animated: true)
 
+    }
+
+
+    private func getSelectedTodoUUID() -> UUID? {
+        guard let selectedTodoEntity = selectedTodoEntity else {
+            return nil
+        }
+        return selectedTodoEntity.uuid
     }
 
 }
